@@ -1,8 +1,6 @@
 package com.example.shop.member.util;
 
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,11 +25,23 @@ public class JwtProvider {
     @Value("${token.private}")
     private String tokenPrivate;
 
-    private static final long JWT_EXPIRATION_MS = 86400000L * 7;
+    private static final long JWT_EXPIRATION_MS = 1000*60*60;
+    private static final long JWT_REFRESH_EXPIRATION_MS = 86400000L * 7;
 
     public String generateToken(Authentication authentication) {
         Date now = new Date();
         Date expireDate = new Date(now.getTime() + JWT_EXPIRATION_MS);
+        log.info("tokenSecret {}", tokenSecret);
+        return Jwts.builder().subject((String) authentication.getPrincipal())
+                .issuedAt(now)
+                .expiration(expireDate)
+                .signWith(loadPrivateKey(tokenPrivate), Jwts.SIG.RS256)
+//                .signWith(Keys.hmacShaKeyFor(Base64.getDecoder().decode(tokenSecret)), Jwts.SIG.HS512)
+                .compact();
+    }
+    public String generateRefreshToken(Authentication authentication) {
+        Date now = new Date();
+        Date expireDate = new Date(now.getTime() + JWT_REFRESH_EXPIRATION_MS);
         log.info("tokenSecret {}", tokenSecret);
         return Jwts.builder().subject((String) authentication.getPrincipal())
                 .issuedAt(now)
@@ -63,7 +73,7 @@ public class JwtProvider {
 
     public String getUserDataFromJwt(String token) {
         try {
-            return Jwts.parser().verifyWith(Keys.hmacShaKeyFor(Base64.getDecoder().decode(tokenPublic))).build().parseSignedClaims(token).getPayload().getSubject();
+            return Jwts.parser().verifyWith(loadPublicKey(tokenPublic)).build().parseSignedClaims(token).getPayload().getSubject();
         } catch (ExpiredJwtException expiredJwtException) {
             throw new JwtException("Expired");
         } catch (JwtException jwtException) {

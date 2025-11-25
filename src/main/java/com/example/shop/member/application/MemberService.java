@@ -7,9 +7,12 @@ import com.example.shop.member.domain.Member;
 import com.example.shop.member.domain.MemberRepository;
 import com.example.shop.member.presentation.dto.LoginRequest;
 import com.example.shop.member.util.JwtProvider;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.actuate.web.exchanges.HttpExchange;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -81,14 +84,26 @@ public class MemberService {
             Member memeber = memberOptional.get();
             if(passwordEncoder.matches(loginRequest.password(), memeber.getPassword())){
                 Authentication authentication = new UsernamePasswordAuthenticationToken(memeber.getId().toString(), null);
-                String token = jwtProvider.generateToken(authentication);
-                res.put("token", token);
+                res.put("access-token", jwtProvider.generateToken(authentication));
+                res.put("refresh-token", jwtProvider.generateRefreshToken(authentication));
                 return new ResponseEntity<>(HttpStatus.OK.value(), res, 1);
             }else{
                 throw new IllegalArgumentException("password is not correct");
             }
         }
         return null;
+    }
+    public ResponseEntity<HashMap<String, Object>> refreshToken(String token){
+//        String token = request.getHeaders().get(HttpHeaders.AUTHORIZATION).get(0);
+        String subject = jwtProvider.getUserDataFromJwt(token);
+        UUID id = UUID.fromString(subject);
+        Optional<Member> memberOptional = memberRepository.findById(id);
+        HashMap<String, Object> res = new HashMap<>();
+        if(memberOptional.isPresent()){
+            Authentication authentication = new UsernamePasswordAuthenticationToken(subject, null);
+            res.put("access-token", jwtProvider.generateToken(authentication));
+        }
+        return new ResponseEntity<>(HttpStatus.CREATED.value(), res, 1);
     }
 
     public Boolean check(String httpMethod, String requestPath) {
