@@ -18,18 +18,23 @@ spec:
         - name: member-service
           image: member:1.0.0
           imagePullPolicy: IfNotPresent
+          env:
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: http://config-service.default.svc.cluster.local:8888
+            - name: EUREKA_INSTANCE_HOSTNAME
+              value: discovery-service
           ports:
-            - containerPort: 8080
+            - containerPort: 8081
           readinessProbe:
             httpGet:
               path: /actuator/health
-              port: 8080
+              port: 8081
             initialDelaySeconds: 20
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /actuator/health
-              port: 8080
+              port: 8081
             initialDelaySeconds: 30
             periodSeconds: 20
           resources:
@@ -52,5 +57,5 @@ spec:
     app: member-service
   ports:
     - name: http
-      port: 8080
-      targetPort: 8080
+      port: 8081
+      targetPort: 8081
